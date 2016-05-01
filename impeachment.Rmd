@@ -1,0 +1,57 @@
+---
+title: "Impeachment - previsão com classificação"
+author: "Wesley Nunes"
+date: "May 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(GGally)
+require(ggplot2)
+require(corrplot)
+require(dplyr)
+dataAll = read.csv2("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv")
+```
+
+## Previsão com classificação na votação do Impeachment
+
+Uma breve análise sobre os deputados na votação do impeachment
+
+> Análise descritiva
+
+A princípio, temos uma amostra com 540 observações contendo 25 variáveis, sendo 1 a variável de resposta que é a votação do impechment.
+
+```{r}
+dim(dataAll)
+str(dataAll)
+```
+
+Mapeando os temas, temos o seguinte: <br>
+Tema | Descrição<br>
+1	    Cobrança de cursos em universidades públic<br>
+2	    Tributação serviços de internet<br>
+3	    Terrorismo<br>
+4	    Infaticídio indígena<br>
+5	    Maioridade 1<br>
+6	    Maioridade 2<br>
+7	    Financiamento privado para partidos<br>
+8	    Financiamento privado para partidos e candidatos<br>
+9	    Terceirização<br>
+10	  Distritao<br>
+11	  Transgênico<br>
+12	  Reeleição<br>
+13	  Cota para mulheres legislativo<br>
+14	  Pensão<br>
+15	  Seguro Desemprego<br>
+16	  Tempo Mandato<br>
+17	  Voto Facultativo<br>
+18	  Voto impresso<br>
+19	  Coincidência reeleição<br>
+
+
+Com isso, podemos agora, analizar um pouco mais sobre nosso dados:
+
+```{r}
+summary(dataAll, na.rm=T)
+```
