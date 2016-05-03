@@ -11,6 +11,9 @@ require(GGally)
 require(ggplot2)
 require(corrplot)
 require(dplyr)
+require(caret)
+library(mlbench)
+library(C50)
 dataAll = read.csv2("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv")
 ```
 
@@ -55,3 +58,53 @@ Com isso, podemos agora, analizar um pouco mais sobre nosso dados:
 ```{r}
 summary(dataAll, na.rm=T)
 ```
+
+Para melhorar a previsão vamos deixar apenas os votos SIM e NAO da coluna do IMPEACHMENT
+
+```{r}
+dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
+```
+
+Vamos agora fazer uma separação da amostra para dados de treino e dados de test
+
+```{r}
+split <- createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
+train <- dataAll[split,]
+test <- dataAll[-split,]
+names(train) = names(dataAll)
+names(test) = names(dataAll)
+```
+
+Com o código abaixo podemos verificar que temos a proporção correta, tanto para treino como para teste.
+
+```{r}
+prop.table(table(train$IMPEACHMENT))
+prop.table(table(test$IMPEACHMENT))
+```
+
+Como temos todas as variáveis qualitativas, portanto, temos o modelo de floresta como a melhor solução para o problema. E com isso, podemos gerar nosso modelo para predição.
+
+```{r, results=FALSE, warning=FALSE}
+grid = expand.grid(.winnow=c(TRUE,FALSE),.trials=c(1,5,10,20,30,40,50,60,70,80,90,100),.model="tree")
+fitControl = trainControl(method="repeatedcv",number=10,repeats=10,returnResamp="all")
+labels = as.factor(train$IMPEACHMENT)
+
+model = caret::train(x=train[c(4,5)],y=labels,tuneGrid=grid,trControl=fitControl,method="C5.0",verbose=FALSE)
+```
+
+
+O gráfico mostra que a partir de uma floresta com aproximadamente 10 árvores já é o necessário para se obter um resultado satisfatório.
+
+```{r}
+plot(model)
+```
+
+Com isso, temos a seguinte previsão para o impeachment:
+
+```{r}
+test_labels = as.factor(test$IMPEACHMENT)
+predictions = predict(model,newdata=test[c(4,5,25)])
+confusionMatrix(data = predictions, test_labels)
+```
+
+
