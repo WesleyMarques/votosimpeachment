@@ -1,0 +1,163 @@
+---
+title: "comparativoImpeachment"
+author: "Wesley Nuens"
+date: "May 4, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+require(GGally)
+require(ggplot2)
+require(corrplot)
+require(dplyr)
+require(caret)
+library(mlbench)
+library(C50)
+dataAll = read.csv2("./data/deputados_temas_e_impeachment_v1.1.csv")
+```
+
+## Previsão com classificação na votação do Impeachment
+
+Uma breve análise sobre os deputados na votação do impeachment
+
+> Análise descritiva
+
+A princípio, temos uma amostra com 540 observações contendo 25 variáveis, sendo 1 a variável de resposta que é a votação do impechment.
+
+```{r}
+dim(dataAll)
+str(dataAll)
+```
+
+Mapeando os temas, temos o seguinte: <br>
+Tema | Descrição<br>
+1	    Cobrança de cursos em universidades públic<br>
+2	    Tributação serviços de internet<br>
+3	    Terrorismo<br>
+4	    Infaticídio indígena<br>
+5	    Maioridade 1<br>
+6	    Maioridade 2<br>
+7	    Financiamento privado para partidos<br>
+8	    Financiamento privado para partidos e candidatos<br>
+9	    Terceirização<br>
+10	  Distritao<br>
+11	  Transgênico<br>
+12	  Reeleição<br>
+13	  Cota para mulheres legislativo<br>
+14	  Pensão<br>
+15	  Seguro Desemprego<br>
+16	  Tempo Mandato<br>
+17	  Voto Facultativo<br>
+18	  Voto impresso<br>
+19	  Coincidência reeleição<br>
+
+
+Com isso, podemos agora, analizar um pouco mais sobre nosso dados:
+
+```{r}
+summary(dataAll, na.rm=T)
+```
+
+Para melhorar a previsão vamos deixar apenas os votos SIM e NAO da coluna do IMPEACHMENT
+
+```{r}
+dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
+```
+
+Vamos agora fazer uma separação da amostra para dados de treino e dados de test
+
+```{r}
+split <- createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
+train <- dataAll[split,]
+test <- dataAll[-split,]
+names(train) = names(dataAll)
+names(test) = names(dataAll)
+```
+
+Com o código abaixo podemos verificar que temos a proporção correta, tanto para treino como para teste.
+
+```{r}
+prop.table(table(train$IMPEACHMENT))
+prop.table(table(test$IMPEACHMENT))
+```
+
+> Comparativos de modelos
+
+A partir de agora, vamos fazer uma comparação com 3 modelos:
+
+  * Tree
+  * KNN
+  * Logistic
+
+## 1 - TREE
+
+```{r,  results=FALSE, warning=FALSE}
+grid_tree = expand.grid(.winnow=c(TRUE,FALSE),.trials=c(1,5,10,20,30,40,50,60,70,80,90,100),.model="tree")
+fitControl_tree = trainControl(method="repeatedcv",number=10,repeats=10,returnResamp="all")
+labels_tree = as.factor(train$IMPEACHMENT)
+
+model_tree = caret::train(x=train[c(4,5)],y=labels_tree,tuneGrid=grid_tree,trControl=fitControl_tree,method="C5.0",verbose=FALSE)
+test_labels_tree = as.factor(test$IMPEACHMENT)
+predictions_tree = predict(model_tree,newdata=test[c(4,5,25)])
+matrix_full_tree <- confusionMatrix(data = predictions_tree, test_labels_tree)
+matrix_full_tree
+ctable_tree <- as.table(matrix_full_tree)
+```
+
+## 2 - KNN
+
+```{r,results=FALSE, warning=FALSE}
+ctrl_knn <- trainControl(method = "repeatedcv", number = 10)
+knnFit <- train(IMPEACHMENT ~ .-id_dep-nome-deputado , 
+                data = train, 
+                method = "knn", 
+                trControl = ctrl_knn,
+                preProcess = c("center","scale"), 
+                tuneGrid = expand.grid(.k = 2:10),
+                metric = "Accuracy")
+test_knn <- test[complete.cases(test),]
+predict_knn <- predict(knnFit, test_knn[-c(25)])
+matrix_full_knn <- confusionMatrix(test_knn$IMPEACHMENT, predict_knn)
+matrix_full_knn
+ctable_knn <- as.table(matrix_full_knn)
+```
+
+## 3 - LOGISTIC
+
+```{r,results=FALSE, warning=FALSE}
+ctrl_logistic <- trainControl(method = "repeatedcv", number = 10, savePredictions = TRUE)
+logit_logistic <- train(IMPEACHMENT ~ UF+partido, 
+               method='glm', 
+               family='binomial', 
+               data=train[c(4,5,25)], 
+               trControl = ctrl_logistic)
+test.probs <-predict(logit_logistic, test[c(4,5)], type = "prob")
+test.probs <- levels(test$IMPEACHMENT)[apply(predict(logit_logistic,test[c(4,5)],type="prob"), 1, which.max)]
+matrix_full_logit <- confusionMatrix(as.factor(test$IMPEACHMENT), as.factor(test.probs))
+matrix_full_logit
+ctable_logit <- as.table(matrix_full_logit)
+```
+
+> TREE vs KNN vs LOGISTIC
+
+Podemos verificar no gráfico, onde o a cor *VERDE* significa que o modelo acertou e o *VERMELHO* o que errou, e nos dados de acurácia acima, que o melhor modelo para esse problema é o *LOGISTIC*
+
+```{r,results=FALSE, warning=FALSE}
+old.par <- par(mfrow=c(1, 3))
+barplot(ctable_tree,main="Prediction with TREE", stack = F, horizontal = F,beside=TRUE, col=c("green", "red", "red", "green"))
+
+barplot(ctable_knn,main="Prediction with KNN",stack = F, horizontal = F,beside=TRUE,col=c("green", "red", "red", "green"))
+
+barplot(ctable_knn,main="Prediction with LOGISTIC",stack = F, horizontal = F, beside=TRUE,col=c("green", "red", "red", "green"))
+par(old.par)
+```
+
+## Conclusões
+
+Podemos perceber algumas coisas interessantes:
+
+  * O modelo TREE é pior para detectar os falsos-verdadeiros 
+  * O modelo TREE é o melhor para detectar o falsos-positivos
+  * Tanto o KNN como o LOGISTIC têm desempenhos semelhantes
+  

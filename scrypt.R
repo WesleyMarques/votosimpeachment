@@ -6,7 +6,7 @@ require(caret)
 library(mlbench)
 library(C50)
 
-dataAll <- read.csv2("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv");
+dataAll <- read.csv2("./data/deputados_temas_e_impeachment_v1.1.csv");
 dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
 #dataAll <- dataAll[complete.cases(dataAll),]
 split <- createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
@@ -48,13 +48,13 @@ table(as.factor(a),test$IMPEACHMENT)
 confusionMatrix(as.factor(test$IMPEACHMENT), as.factor(test.probs))
 
 #KNN
-ctrl <- trainControl(method = "repeatedcv", number = 10)
+ctrl_knn <- trainControl(method = "repeatedcv", number = 10)
 knnFit <- train(IMPEACHMENT ~ .-id_dep-nome-deputado , 
                 data = train, 
                 method = "knn", 
-                trControl = ctrl,
+                trControl = ctrl_knn,
                 preProcess = c("center","scale"), 
                 tuneGrid = expand.grid(.k = 2:10),
                 metric = "Accuracy")
-test2 <- test[complete.cases(test),]
-confusionMatrix(test2$IMPEACHMENT, predict(knnFit, test2[-c(25)]))
+test_knn <- test[complete.cases(test),]
+confusionMatrix(test2$IMPEACHMENT, predict(knnFit, test_knn[-c(25)]))
