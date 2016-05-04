@@ -9,55 +9,52 @@ library(C50)
 dataAll <- read.csv2("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv");
 dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
 #dataAll <- dataAll[complete.cases(dataAll),]
-dim(dataAll)
-str(dataAll)
-plot(dataAll[,c(4:25)])
-corrplot(dataAll[,c(4:25)])
-dataAll[,4]
-ggpairs(dataAll, columns = c(6:25))
-
-
-summary(dataAll)
-plot(dataAll)
-str(dataAll)
-plot(dataAll[c(13,25)],pch=20)
-pairs(dataAll$tema_19, dataAll$IMPEACHMENT)
-
-#logistic
 split <- createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
 train <- dataAll[split,]
 test <- dataAll[-split,]
 names(train) = names(dataAll) #adicionando cabeçalho aos dados de treino e test
 names(test) = names(dataAll)
-prop.table(table(train$IMPEACHMENT))
-prop.table(table(test$IMPEACHMENT))
+
+
+
+#tree
 grid = expand.grid(.winnow=c(TRUE,FALSE),.trials=c(1,5,10,20,30,40,50,60,70,80,90,100),.model="tree")
 fitControl = trainControl(method="repeatedcv",number=10,repeats=10,returnResamp="all")
 labels = as.factor(train$IMPEACHMENT)
 
 model = caret::train(x=train[c(4,5)],y=labels,tuneGrid=grid,trControl=fitControl,method="C5.0",verbose=FALSE)
-  plot(model)
+plot(model)
 summary(model)
 test_labels = as.factor(test$IMPEACHMENT)
 predictions = predict(model,newdata=test[c(4,5,25)])
 confusionMatrix(data = predictions, test_labels)
 
 
-
-test <- filter(test, grepl("SIM|NAO", test$IMPEACHMENT)) %>% droplevels()
+#logistic
+ctrl <- trainControl(method = "repeatedcv", number = 10, savePredictions = TRUE)
 table(test$IMPEACHMENT)
-logit <- glm(IMPEACHMENT ~ partido, family = 'binomial', data = train)
-summary(logit)
-summary(test$partido)
-summary(train$partido)
-test.probs <-predict(logit, test, type = "response")
-pred.logit <- rep(0,length(test.probs))
-pred.logit[test.probs >= 0.5] <- 1
-table(pred.logit, test$IMPEACHMENT)
-table(pred.logit, test$IMPEACHMENT)
-confusionMatrix(test$IMPEACHMENT, pred.logit)
+#logit <- glm(IMPEACHMENT ~ UF+partido, family = binomial(link = "logit"), data = train[c(4,5,25)])
+logit <- train(IMPEACHMENT ~ UF+partido, 
+               method='glm', 
+               family='binomial', 
+               data=train[c(4,5,25)], 
+               trControl = ctrl)
+test.probs <-predict(logit, test[c(4,5)], type = "prob")
+test.probs <- levels(test$IMPEACHMENT)[apply(predict(logit,test[c(4,5)],type="prob"), 1, which.max)]
+#pred.logit <- rep("NAO",length(test.probs))
+#pred.logit[test.probs >= 0.78] <- "SIM"
+#test2 <- test[complete.cases(test),]
+table(as.factor(a),test$IMPEACHMENT)
+confusionMatrix(as.factor(test$IMPEACHMENT), as.factor(test.probs))
 
-table(pred.logit)
-table(test$IMPEACHMENT)
-test$IMPEACHMENT
-pred.logit
+#KNN
+ctrl <- trainControl(method = "repeatedcv", number = 10)
+knnFit <- train(IMPEACHMENT ~ .-id_dep-nome-deputado , 
+                data = train, 
+                method = "knn", 
+                trControl = ctrl,
+                preProcess = c("center","scale"), 
+                tuneGrid = expand.grid(.k = 2:10),
+                metric = "Accuracy")
+test2 <- test[complete.cases(test),]
+confusionMatrix(test2$IMPEACHMENT, predict(knnFit, test2[-c(25)]))
