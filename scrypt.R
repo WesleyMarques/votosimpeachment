@@ -2,14 +2,14 @@ require(GGally)
 require(ggplot2)
 require(corrplot)
 require(dplyr)
-require(caret)
+library(caret)
 library(mlbench)
 library(C50)
 
-dataAll <- read.csv2("./data/deputados_temas_e_impeachment_v1.1.csv");
-dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
+dataAll <- read.csv("./data/deputados_temas_e_impeachment_v1.1.csv");
+dataAll <- filter(dataAll, grepl('sim|nao', dataAll$IMPEACHMENT)) %>% droplevels()
 #dataAll <- dataAll[complete.cases(dataAll),]
-split <- createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
+split <-  createDataPartition(y = dataAll$IMPEACHMENT, p = 0.75, list = F)
 train <- dataAll[split,]
 test <- dataAll[-split,]
 names(train) = names(dataAll) #adicionando cabeçalho aos dados de treino e test

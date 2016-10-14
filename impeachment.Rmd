@@ -14,7 +14,7 @@ require(dplyr)
 require(caret)
 library(mlbench)
 library(C50)
-dataAll = read.csv2("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv")
+dataAll = read.csv("~/workspaceR/votosImpeachment/data/deputados_temas_e_impeachment_v1.1.csv")
 ```
 
 ## Previsão com classificação na votação do Impeachment
@@ -62,7 +62,7 @@ summary(dataAll, na.rm=T)
 Para melhorar a previsão vamos deixar apenas os votos SIM e NAO da coluna do IMPEACHMENT
 
 ```{r}
-dataAll <- filter(dataAll, grepl('SIM|NAO', dataAll$IMPEACHMENT)) %>% droplevels()
+dataAll <- filter(dataAll, grepl('sim|nao', dataAll$IMPEACHMENT)) %>% droplevels()
 ```
 
 Vamos agora fazer uma separação da amostra para dados de treino e dados de test
